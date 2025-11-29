@@ -181,7 +181,47 @@ PROJETOS_POR_EMPRESA = {
             ]
         }
     },
-    # ... (outras empresas com mesma estrutura)
+    "Interligação Elétrica Itaúnas": {
+        "Projeto vinculado": ["IE Interligação Elétrica Itaúnas"],
+        "Trecho": {"IE Interligação Elétrica Itaúnas": [""]}
+    },
+    "Interligação Elétrica Ivaí": {
+        "Projeto vinculado": ["IE Interligação Elétrica Ivaí"],
+        "Trecho": {
+            "IE Interligação Elétrica Ivaí": [
+                "ERB - LOTE 1", "ODI - SE Guaíra", "ODI - SE Sarandi",
+                "ODI - SE Paranavaí Norte", "ODI - SE Foz do Iguaçu",
+                "ODI - SE Londrina", "ODI - LT Guaíra - Sarandi",
+                "ODI - LT Foz do Iguaçu - Guaíra", "ODI - LT Londrina - Sarandi",
+                "ODI - LT Sarandi - Paranavaí Norte", "ODI - Administração - Técnica",
+                "ODI - Adiantamento a Fornecedor"
+            ]
+        }
+    },
+    "Interligação Elétrica Jaguar 8": {
+        "Projeto vinculado": ["Água Azul"],
+        "Trecho": {"Água Azul": [""]}
+    },
+    "Interligação Elétrica Minas Gerais": {
+        "Projeto vinculado": ["IEMG", "Triângulo Mineiro"],
+        "Trecho": {"IEMG": [""], "Triângulo Mineiro": [""]}
+    },
+    "Interligação Elétrica Norte Nordeste": {
+        "Projeto vinculado": ["IENNE"],
+        "Trecho": {"IENNE": [""]}
+    },
+    "Interligação Elétrica Riacho Grande": {
+        "Projeto vinculado": ["IE Interligação Elétrica Riacho Grande"],
+        "Trecho": {"IE Interligação Elétrica Riacho Grande": [""]}
+    },
+    "Interligação Elétrica Sul": {
+        "Projeto vinculado": ["IESUL"],
+        "Trecho": {"IESUL": [""]}
+    },
+    "Interligação Elétrica Tibagi": {
+        "Projeto vinculado": ["IE Interligação Elétrica Tibagi"],
+        "Trecho": {"IE Interligação Elétrica Tibagi": [""]}
+    }
 }
 
 # ============================================================
@@ -201,17 +241,21 @@ def inicializar_estado():
     if 'dados_cobrancas_nao_validados' not in st.session_state:
         st.session_state.dados_cobrancas_nao_validados = []
     
+    if 'cobrancas' not in st.session_state:
+        st.session_state.cobrancas = [{}]
+    
     # Estados do processo
-    if 'is_dados_validado' not in st.session_state:
-        st.session_state.is_dados_validado = False
-    if 'is_revisao_concluida' not in st.session_state:
-        st.session_state.is_revisao_concluida = False
-    if 'is_detalhamento_iniciado' not in st.session_state:
-        st.session_state.is_detalhamento_iniciado = False
-    if 'is_detalhamento_validado' not in st.session_state:
-        st.session_state.is_detalhamento_validado = False
-    if 'is_finalizado' not in st.session_state:
-        st.session_state.is_finalizado = False
+    estados = {
+        'is_dados_validado': False,
+        'is_revisao_concluida': False,
+        'is_detalhamento_iniciado': False,
+        'is_detalhamento_validado': False,
+        'is_finalizado': False
+    }
+    
+    for estado, valor in estados.items():
+        if estado not in st.session_state:
+            st.session_state[estado] = valor
 
 # ============================================================
 # TELAS DO SISTEMA
@@ -224,7 +268,7 @@ def mostrar_tela_inicio():
     
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        if st.button("🚀 Iniciar Lançamento", use_container_width=True):
+        if st.button("🚀 Iniciar Lançamento", use_container_width=True, key="iniciar_lancamento"):
             st.session_state.tela_atual = "dados"
             st.rerun()
 
@@ -233,110 +277,130 @@ def mostrar_tela_dados():
     st.title("Dados Iniciais - Faturamento")
     st.markdown("---")
     
-    with st.form("dados_iniciais"):
+    # Usar um formulário para agrupar os dados
+    with st.form("form_dados_iniciais", clear_on_submit=False):
         col1, col2 = st.columns(2)
         
         with col1:
             cnpj = st.text_input("CNPJ do fornecedor*", 
                                placeholder="00.000.000/0000-00",
-                               help="CNPJ completo do fornecedor")
+                               help="CNPJ completo do fornecedor",
+                               key="cnpj")
             
             empresa = st.selectbox("Empresa contratante*", 
                                  options=[""] + sorted(EMPRESAS),
-                                 help="Selecione a empresa contratante")
+                                 help="Selecione a empresa contratante",
+                                 key="empresa")
             
             advogado = st.selectbox("Advogado (a) responsável*",
                                   options=[""] + sorted(ADVOGADOS),
-                                  help="Selecione o advogado responsável")
+                                  help="Selecione o advogado responsável",
+                                  key="advogado")
             
             tipo_doc = st.selectbox("Tipo de documento de cobrança*",
                                   options=["", "Nota Fiscal", "Nota de Débito", "RPA (Recibo de Pagamento Autônomo)"],
-                                  help="Tipo do documento de cobrança")
+                                  help="Tipo do documento de cobrança",
+                                  key="tipo_doc")
         
         with col2:
             data_prevista = st.date_input("Data prevista de emissão*",
                                         value=date.today(),
-                                        help="Data prevista para emissão do documento")
+                                        help="Data prevista para emissão do documento",
+                                        key="data_prevista")
             
             existe_contrato = st.selectbox("Existe contrato vinculado?",
                                          options=["Não", "Sim"],
-                                         help="Indique se existe contrato vinculado")
+                                         help="Indique se existe contrato vinculado",
+                                         key="existe_contrato")
             
-            n_contrato = ""
-            if existe_contrato == "Sim":
-                n_contrato = st.text_input("Nº do contrato*",
-                                         placeholder="Formato: XX99999999",
-                                         max_chars=10,
-                                         help="Número do contrato (10 caracteres)")
+            n_contrato = st.text_input("Nº do contrato",
+                                     placeholder="Formato: XX99999999",
+                                     max_chars=10,
+                                     help="Número do contrato (10 caracteres)",
+                                     key="n_contrato",
+                                     disabled=(st.session_state.get('existe_contrato', 'Não') != 'Sim'))
             
             existe_pedido = st.selectbox("Existe pedido vinculado?",
                                        options=["Não", "Sim"],
-                                       help="Indique se existe pedido vinculado")
+                                       help="Indique se existe pedido vinculado",
+                                       key="existe_pedido")
             
-            n_pedido = ""
-            if existe_pedido == "Sim":
-                n_pedido = st.text_input("Nº do pedido*",
-                                       placeholder="Apenas números (10 dígitos)",
-                                       max_chars=10,
-                                       help="Número do pedido (10 dígitos)")
+            n_pedido = st.text_input("Nº do pedido",
+                                   placeholder="Apenas números (10 dígitos)",
+                                   max_chars=10,
+                                   help="Número do pedido (10 dígitos)",
+                                   key="n_pedido",
+                                   disabled=(st.session_state.get('existe_pedido', 'Não') != 'Sim'))
         
         n_medicao = st.text_input("Nº medição (doc.interno fornecedor)*",
                                 placeholder="Número interno do fornecedor",
-                                help="Número da medição no sistema do fornecedor")
+                                help="Número da medição no sistema do fornecedor",
+                                key="n_medicao")
         
         breve_desc = st.text_area("Breve descrição da fatura*",
                                 placeholder="Descrição resumida da fatura",
-                                help="Descrição breve da fatura")
+                                help="Descrição breve da fatura",
+                                key="breve_desc")
         
-        # Validação e submissão
-        if st.form_submit_button("✅ Validar Dados e Prosseguir para Revisão", use_container_width=True):
-            erros = []
-            
-            # Validações
-            if not cnpj or len(filtrar_numeros(cnpj)) != 14:
-                erros.append("CNPJ inválido ou incompleto")
-            elif not cnpj_valido(filtrar_numeros(cnpj)):
-                erros.append("CNPJ inválido")
-            
-            if not empresa:
-                erros.append("Empresa contratante é obrigatória")
-            if not advogado:
-                erros.append("Advogado responsável é obrigatório")
-            if not tipo_doc:
-                erros.append("Tipo de documento é obrigatório")
-            if not data_prevista:
-                erros.append("Data prevista é obrigatória")
-            if not n_medicao:
-                erros.append("Nº medição é obrigatório")
-            if not breve_desc:
-                erros.append("Breve descrição é obrigatória")
-            if existe_contrato == "Sim" and (not n_contrato or len(n_contrato) != 10):
-                erros.append("Nº do contrato deve ter 10 caracteres quando 'Sim' for selecionado")
-            if existe_pedido == "Sim" and (not n_pedido or len(n_pedido) != 10):
-                erros.append("Nº do pedido deve ter 10 dígitos quando 'Sim' for selecionado")
-            
-            if erros:
-                for erro in erros:
-                    st.error(erro)
-            else:
-                # Salvar dados
-                st.session_state.dados_iniciais = {
-                    "cnpj": cnpj,
-                    "empresa": empresa,
-                    "advogado": advogado,
-                    "tipo_doc": tipo_doc,
-                    "data_prevista": data_prevista,
-                    "existe_contrato": existe_contrato,
-                    "n_contrato": n_contrato,
-                    "existe_pedido": existe_pedido,
-                    "n_pedido": n_pedido,
-                    "n_medicao": n_medicao,
-                    "breve_desc": breve_desc
-                }
-                st.session_state.is_dados_validado = True
-                st.session_state.tela_atual = "revisao"
-                st.success("Dados validados com sucesso!")
-                st.rerun()
+        # Botão de submissão
+        submitted = st.form_submit_button("✅ Validar Dados e Prosseguir para Revisão", use_container_width=True)
+        
+        if submitted:
+            validar_e_salvar_dados(cnpj, empresa, advogado, tipo_doc, data_prevista,
+                                 existe_contrato, n_contrato, existe_pedido, n_pedido,
+                                 n_medicao, breve_desc)
+
+def validar_e_salvar_dados(cnpj, empresa, advogado, tipo_doc, data_prevista,
+                          existe_contrato, n_contrato, existe_pedido, n_pedido,
+                          n_medicao, breve_desc):
+    """Valida e salva os dados iniciais"""
+    erros = []
+    
+    # Validações
+    if not cnpj or len(filtrar_numeros(cnpj)) != 14:
+        erros.append("CNPJ inválido ou incompleto")
+    elif not cnpj_valido(filtrar_numeros(cnpj)):
+        erros.append("CNPJ inválido")
+    
+    if not empresa:
+        erros.append("Empresa contratante é obrigatória")
+    if not advogado:
+        erros.append("Advogado responsável é obrigatório")
+    if not tipo_doc:
+        erros.append("Tipo de documento é obrigatório")
+    if not data_prevista:
+        erros.append("Data prevista é obrigatória")
+    if not n_medicao:
+        erros.append("Nº medição é obrigatório")
+    if not breve_desc:
+        erros.append("Breve descrição é obrigatória")
+    if existe_contrato == "Sim" and (not n_contrato or len(n_contrato) != 10):
+        erros.append("Nº do contrato deve ter 10 caracteres quando 'Sim' for selecionado")
+    if existe_pedido == "Sim" and (not n_pedido or len(n_pedido) != 10):
+        erros.append("Nº do pedido deve ter 10 dígitos quando 'Sim' for selecionado")
+    
+    if erros:
+        for erro in erros:
+            st.error(erro)
+    else:
+        # Salvar dados no session_state
+        st.session_state.dados_iniciais = {
+            "cnpj": cnpj,
+            "empresa": empresa,
+            "advogado": advogado,
+            "tipo_doc": tipo_doc,
+            "data_prevista": data_prevista,
+            "existe_contrato": existe_contrato,
+            "n_contrato": n_contrato if existe_contrato == "Sim" else "",
+            "existe_pedido": existe_pedido,
+            "n_pedido": n_pedido if existe_pedido == "Sim" else "",
+            "n_medicao": n_medicao,
+            "breve_desc": breve_desc
+        }
+        st.session_state.is_dados_validado = True
+        st.session_state.tela_atual = "revisao"
+        st.success("Dados validados com sucesso!")
+        st.rerun()
 
 def mostrar_tela_revisao():
     """Tela de revisão dos dados iniciais"""
@@ -375,12 +439,12 @@ def mostrar_tela_revisao():
     
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("← Voltar e Corrigir", use_container_width=True):
+        if st.button("← Voltar e Corrigir", use_container_width=True, key="voltar_revisao"):
             st.session_state.tela_atual = "dados"
             st.rerun()
     
     with col2:
-        if st.button("Iniciar Detalhamento →", use_container_width=True):
+        if st.button("Iniciar Detalhamento →", use_container_width=True, key="iniciar_detalhamento"):
             st.session_state.is_revisao_concluida = True
             st.session_state.tela_atual = "detalhamento"
             st.rerun()
@@ -395,19 +459,15 @@ def mostrar_tela_detalhamento():
     st.title("Detalhamento das Cobranças")
     st.markdown("---")
     
-    # Gerenciar cobranças
-    if 'cobrancas' not in st.session_state:
-        st.session_state.cobrancas = [{}]
-    
     # Adicionar/remover cobranças
     col1, col2 = st.columns([3, 1])
     with col2:
-        if st.button("➕ Adicionar Cobrança"):
+        if st.button("➕ Adicionar Cobrança", key="add_cobranca"):
             st.session_state.cobrancas.append({})
             st.rerun()
     
     # Formulário para cada cobrança
-    for i, cobranca in enumerate(st.session_state.cobrancas):
+    for i in range(len(st.session_state.cobrancas)):
         with st.expander(f"Cobrança {i+1}", expanded=True):
             mostrar_formulario_cobranca(i)
     
@@ -416,12 +476,12 @@ def mostrar_tela_detalhamento():
     # Botões de ação
     col1, col2, col3 = st.columns([1, 1, 1])
     with col1:
-        if st.button("← Voltar", use_container_width=True):
+        if st.button("← Voltar", use_container_width=True, key="voltar_detalhamento"):
             st.session_state.tela_atual = "revisao"
             st.rerun()
     
     with col3:
-        if st.button("Validar e Revisar →", use_container_width=True):
+        if st.button("Validar e Revisar →", use_container_width=True, key="validar_detalhamento"):
             if validar_detalhamento():
                 st.session_state.is_detalhamento_validado = True
                 st.session_state.tela_atual = "revisao_detalhada"
@@ -429,8 +489,6 @@ def mostrar_tela_detalhamento():
 
 def mostrar_formulario_cobranca(index):
     """Mostra formulário para uma cobrança específica"""
-    cobranca_key = f"cobranca_{index}"
-    
     col1, col2 = st.columns(2)
     
     with col1:
@@ -555,8 +613,10 @@ def mostrar_formulario_cobranca(index):
     # Botão para remover cobrança (exceto a primeira)
     if index > 0:
         if st.button(f"🗑️ Remover Cobrança {index+1}", key=f"remover_{index}"):
-            st.session_state.cobrancas.pop(index)
-            st.rerun()
+            # Não modificar diretamente, usar callback
+            if len(st.session_state.cobrancas) > 1:
+                st.session_state.cobrancas.pop(index)
+                st.rerun()
 
 def validar_detalhamento():
     """Valida todos os detalhamentos das cobranças"""
@@ -691,18 +751,18 @@ def mostrar_tela_revisao_detalhada():
     col1, col2 = st.columns(2)
     
     with col1:
-        if st.button("← Voltar e Corrigir Detalhes", use_container_width=True):
+        if st.button("← Voltar e Corrigir Detalhes", use_container_width=True, key="voltar_revisao_detalhada"):
             st.session_state.tela_atual = "detalhamento"
             st.rerun()
     
     with col2:
-        if st.button("🎯 FINALIZAR E GERAR EXCEL", use_container_width=True):
+        if st.button("🎯 FINALIZAR E GERAR EXCEL", use_container_width=True, key="finalizar_processo"):
             gerar_excel()
             st.session_state.is_finalizado = True
             st.success("Processo finalizado com sucesso! Arquivo Excel gerado.")
 
 # ============================================================
-# FUNÇÕES PARA GERAR EXCEL
+# FUNÇÕES PARA GERAR EXCEL (simplificadas)
 # ============================================================
 def gerar_excel():
     """Gera o arquivo Excel final"""
@@ -713,23 +773,47 @@ def gerar_excel():
         # Planilha principal
         sheet_principal = workbook.active
         sheet_principal.title = "Medições"
-        formatar_planilha_principal(sheet_principal)
         
-        # Planilha BD
-        sheet_bd = workbook.create_sheet(title="BD")
-        formatar_planilha_bd(sheet_bd)
+        # Adicionar dados básicos
+        dados = st.session_state.dados_iniciais
+        sheet_principal['A1'] = "Medição Jurídica"
+        sheet_principal['A2'] = f"Nº {dados.get('n_medicao', 'N/A')}"
         
-        # Proteção
-        sheet_principal.protection.password = 'SINAPSE4'
-        sheet_principal.protection.sheet = True
-        sheet_bd.protection.password = 'SINAPSE4'
-        sheet_bd.protection.sheet = True
-        sheet_bd.sheet_state = 'hidden'
+        # Adicionar dados das cobranças
+        row = 4
+        sheet_principal[f'A{row}'] = "Cobrança"
+        sheet_principal[f'B{row}'] = "Nº Espaider"
+        sheet_principal[f'C{row}'] = "Projeto"
+        sheet_principal[f'D{row}'] = "Trecho"
+        sheet_principal[f'E{row}'] = "Matéria"
+        sheet_principal[f'F{row}'] = "Tipo Cobrança"
+        sheet_principal[f'G{row}'] = "Valor"
+        sheet_principal[f'H{row}'] = "Texto Breve"
         
-        workbook.security = WorkbookProtection(
-            workbookPassword='SINAPSE4',
-            lockStructure=True
-        )
+        row += 1
+        for cobranca in st.session_state.dados_coletados:
+            bloco_1 = cobranca.get('bloco_1', {})
+            sheet_principal[f'A{row}'] = cobranca['num_cobranca']
+            sheet_principal[f'B{row}'] = cobranca.get('Nº Espaider', '')
+            sheet_principal[f'C{row}'] = cobranca.get('Projeto vinculado', '')
+            sheet_principal[f'D{row}'] = cobranca.get('Trecho', '')
+            sheet_principal[f'E{row}'] = cobranca.get('Matéria', '')
+            sheet_principal[f'F{row}'] = bloco_1.get('tipo', '')
+            sheet_principal[f'G{row}'] = bloco_1.get('valor', '')
+            sheet_principal[f'H{row}'] = bloco_1.get('texto_breve', '')
+            row += 1
+            
+            if 'bloco_2' in cobranca:
+                bloco_2 = cobranca['bloco_2']
+                sheet_principal[f'A{row}'] = cobranca['num_cobranca']
+                sheet_principal[f'B{row}'] = cobranca.get('Nº Espaider', '')
+                sheet_principal[f'C{row}'] = cobranca.get('Projeto vinculado', '')
+                sheet_principal[f'D{row}'] = cobranca.get('Trecho', '')
+                sheet_principal[f'E{row}'] = cobranca.get('Matéria', '')
+                sheet_principal[f'F{row}'] = bloco_2.get('tipo', '')
+                sheet_principal[f'G{row}'] = bloco_2.get('valor', '')
+                sheet_principal[f'H{row}'] = bloco_2.get('texto_breve', '')
+                row += 1
         
         # Salvar para download
         buffer = io.BytesIO()
@@ -748,41 +832,6 @@ def gerar_excel():
     except Exception as e:
         st.error(f"Erro ao gerar Excel: {e}")
 
-def formatar_planilha_principal(sheet):
-    """Formata a planilha principal do Excel"""
-    # Configurações de estilo
-    font_header_azul = Font(name='Segoe UI', size=11, bold=True, color="FFFFFF")
-    fill_header_azul = PatternFill(start_color="002060", end_color="002060", fill_type="solid")
-    font_bold = Font(name='Segoe UI', size=10, bold=True)
-    font_normal = Font(name='Segoe UI', size=10)
-    
-    alignment_left = Alignment(horizontal='left', vertical='center', wrap_text=True)
-    alignment_center = Alignment(horizontal='center', vertical='center')
-    thin_border = Border(
-        left=Side(style='thin'), right=Side(style='thin'),
-        top=Side(style='thin'), bottom=Side(style='thin')
-    )
-    
-    # Cabeçalho
-    sheet['D2'] = f"Medição Jurídica Nº {st.session_state.dados_iniciais.get('n_medicao', 'N/A')}"
-    sheet['D2'].font = Font(name='Segoe UI', size=16, bold=True)
-    sheet['D2'].alignment = alignment_center
-    sheet.merge_cells('D2:G2')
-    
-    # Dados iniciais
-    sheet['B5'] = "Dados Iniciais - Faturamento"
-    sheet['B5'].font = font_header_azul
-    sheet['B5'].fill = fill_header_azul
-    sheet['B5'].alignment = alignment_center
-    sheet.merge_cells('B5:G5')
-    
-    # ... (continua com a formatação completa da planilha)
-
-def formatar_planilha_bd(sheet):
-    """Formata a planilha BD do Excel"""
-    # Implementação similar à função original
-    pass
-
 # ============================================================
 # BARRA LATERAL
 # ============================================================
@@ -795,27 +844,27 @@ def mostrar_sidebar():
         # Navegação
         st.subheader("Navegação")
         
-        if st.button("🏠 Início", use_container_width=True):
+        if st.button("🏠 Início", use_container_width=True, key="sidebar_inicio"):
             st.session_state.tela_atual = "inicio"
             st.rerun()
         
-        if st.button("📊 Dados Iniciais", use_container_width=True):
+        if st.button("📊 Dados Iniciais", use_container_width=True, key="sidebar_dados"):
             st.session_state.tela_atual = "dados"
             st.rerun()
         
-        if st.button("👁️ Revisão", use_container_width=True, 
+        if st.button("👁️ Revisão", use_container_width=True, key="sidebar_revisao",
                     disabled=not st.session_state.is_dados_validado):
             if st.session_state.is_dados_validado:
                 st.session_state.tela_atual = "revisao"
                 st.rerun()
         
-        if st.button("📋 Detalhamento", use_container_width=True,
+        if st.button("📋 Detalhamento", use_container_width=True, key="sidebar_detalhamento",
                     disabled=not st.session_state.is_revisao_concluida):
             if st.session_state.is_revisao_concluida:
                 st.session_state.tela_atual = "detalhamento"
                 st.rerun()
         
-        if st.button("🔍 Revisão Detalhada", use_container_width=True,
+        if st.button("🔍 Revisão Detalhada", use_container_width=True, key="sidebar_revisao_detalhada",
                     disabled=not st.session_state.is_detalhamento_validado):
             if st.session_state.is_detalhamento_validado:
                 st.session_state.tela_atual = "revisao_detalhada"
@@ -826,48 +875,41 @@ def mostrar_sidebar():
         # Status do processo
         st.subheader("Status do Processo")
         
-        status_icons = {
-            "done": "✅",
-            "active": "🟢", 
-            "pending": "⚪",
-            "disabled": "⚫"
-        }
-        
         # Etapa 1
         if st.session_state.is_dados_validado:
-            st.write(f"{status_icons['done']} 1. Dados Iniciais")
+            st.write("✅ 1. Dados Iniciais")
         else:
-            st.write(f"{status_icons['active']} 1. Dados Iniciais")
+            st.write("🟢 1. Dados Iniciais")
         
         # Etapa 2
         if st.session_state.is_revisao_concluida:
-            st.write(f"{status_icons['done']} 2. Revisão")
+            st.write("✅ 2. Revisão")
         elif st.session_state.is_dados_validado:
-            st.write(f"{status_icons['active']} 2. Revisão")
+            st.write("🟢 2. Revisão")
         else:
-            st.write(f"{status_icons['pending']} 2. Revisão")
+            st.write("⚪ 2. Revisão")
         
         # Etapa 3
         if st.session_state.is_detalhamento_validado:
-            st.write(f"{status_icons['done']} 3. Detalhamento")
+            st.write("✅ 3. Detalhamento")
         elif st.session_state.is_revisao_concluida:
-            st.write(f"{status_icons['active']} 3. Detalhamento")
+            st.write("🟢 3. Detalhamento")
         else:
-            st.write(f"{status_icons['pending']} 3. Detalhamento")
+            st.write("⚪ 3. Detalhamento")
         
         # Etapa 4
         if st.session_state.is_finalizado:
-            st.write(f"{status_icons['done']} 4. Revisão Detalhada")
+            st.write("✅ 4. Revisão Detalhada")
         elif st.session_state.is_detalhamento_validado:
-            st.write(f"{status_icons['active']} 4. Revisão Detalhada")
+            st.write("🟢 4. Revisão Detalhada")
         else:
-            st.write(f"{status_icons['pending']} 4. Revisão Detalhada")
+            st.write("⚪ 4. Revisão Detalhada")
         
         # Etapa 5
         if st.session_state.is_finalizado:
-            st.write(f"{status_icons['done']} 5. Geração do Arquivo")
+            st.write("✅ 5. Geração do Arquivo")
         else:
-            st.write(f"{status_icons['pending']} 5. Geração do Arquivo")
+            st.write("⚪ 5. Geração do Arquivo")
         
         st.markdown("---")
         st.markdown("© Equipe de Desenvolvimento")
